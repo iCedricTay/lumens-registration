@@ -1,28 +1,27 @@
-from flask import Flask, render_template, request, redirect, flash, url_for
+from flask import Flask, render_template, request, redirect, flash, url_for, send_from_directory
 import re
+import os
 from datetime import datetime
 
 import gspread
 from google.oauth2.service_account import Credentials
 
 app = Flask(__name__)
-app.secret_key = "lumens_ndp_secret_key"
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "lumens_ndp_secret_key")
 
-CREDS_FILE = "google-service-account.json"
-SPREADSHEET_NAME = "Lumens Registration"
+CREDS_FILE = os.getenv("GOOGLE_CREDS_FILE", "google-service-account.json")
+SPREADSHEET_NAME = os.getenv("SPREADSHEET_NAME", "Lumens Registration")
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
 
-
 def get_worksheet():
     credentials = Credentials.from_service_account_file(CREDS_FILE, scopes=SCOPES)
     client = gspread.authorize(credentials)
     spreadsheet = client.open(SPREADSHEET_NAME)
     return spreadsheet.sheet1
-
 
 def ensure_headers():
     worksheet = get_worksheet()
@@ -41,7 +40,6 @@ def ensure_headers():
     if not headers:
         worksheet.append_row(expected_headers)
 
-
 def save_to_google_sheet(rm, title, name, gender, contact_number, carplate):
     ensure_headers()
     worksheet = get_worksheet()
@@ -57,6 +55,13 @@ def save_to_google_sheet(rm, title, name, gender, contact_number, carplate):
         carplate
     ])
 
+@app.route("/favicon.ico")
+def favicon():
+    return send_from_directory(
+        os.path.join(app.root_path, "static"),
+        "favicon.ico",
+        mimetype="image/vnd.microsoft.icon"
+    )
 
 @app.route("/", methods=["GET", "POST"])
 def registration():
@@ -94,7 +99,6 @@ def registration():
         return redirect(url_for("registration") + "#registration-form")
 
     return render_template("registration.html")
-
 
 if __name__ == "__main__":
     app.run(debug=True)
